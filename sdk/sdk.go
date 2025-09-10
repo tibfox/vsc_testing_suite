@@ -1,9 +1,9 @@
 package sdk
 
 import (
-	_ "contract-template/runtime"
 	"encoding/json"
 	"strconv"
+	_ "vsc_testing_suite/runtime"
 )
 
 //go:wasmimport sdk console.log

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"contract-template/sdk"
-	_ "contract-template/sdk" // ensure sdk is imported
-	"encoding/json"
+	"fmt"
+	"strconv"
+	"vsc_testing_suite/sdk"
+	_ "vsc_testing_suite/sdk" // ensure sdk is imported
 )
 
 func main() {
@@ -33,65 +34,80 @@ func Echo(msg *string) *string {
 
 // // --- State ---
 
-// //go:wasmexport set_object
-// func Set_object(key *string, value *string) *string {
-// 	if key == nil || value == nil {
-// 		return strptr("error: missing key/value")
-// 	}
-// 	sdk.StateSetObject(*key, *value)
-// 	return strptr("ok")
-// }
-
-// //go:wasmexport get_object
-// func Get_object(key *string) *string {
-// 	if key == nil {
-// 		return strptr("")
-// 	}
-// 	res := sdk.StateGetObject(*key)
-// 	if res == nil {
-// 		return strptr("")
-// 	}
-// 	return res
-// }
-
-// //go:wasmexport rm_object
-// func Rm_object(key *string) *string {
-// 	if key == nil {
-// 		return strptr("error: missing key")
-// 	}
-// 	sdk.StateDeleteObject(*key)
-// 	return strptr("ok")
-// }
-
-// // --- Env ---
-
-//go:wasmexport get_env_json
-func Get_env_json() *string {
-	env := sdk.GetEnv()
-	b, _ := json.Marshal(env)
-	s := string(b)
-	return &s
+//go:wasmexport set_object
+func Set_object(key *string, value *string) *string {
+	if key == nil || value == nil {
+		return strptr("error: missing key/value")
+	}
+	sdk.StateSetObject(*key, *value)
+	return strptr("ok")
 }
 
-// //go:wasmexport get_env_key
-// func Get_env_key(k *string) *string {
-// 	if k == nil {
-// 		return strptr("")
-// 	}
-// 	return sdk.GetEnvKey(*k)
-// }
+//go:wasmexport get_object
+func Get_object(key *string) *string {
+	if key == nil {
+		return strptr("")
+	}
+	res := sdk.StateGetObject(*key)
+	if res == nil || *res == "" {
+		return strptr("key not found")
+	}
+	return res
+}
 
-// // --- Balances ---
+//go:wasmexport rm_object
+func Rm_object(key *string) *string {
+	if key == nil {
+		return strptr("error: missing key")
+	}
+	sdk.StateDeleteObject(*key)
+	return strptr("ok")
+}
 
-// //go:wasmexport get_balance
-// func Get_balance(addr *string, asset *string) *string {
-// 	if addr == nil || asset == nil {
-// 		return strptr("error: missing addr/asset")
-// 	}
-// 	bal := sdk.GetBalance(sdk.Address(*addr), sdk.Asset(*asset))
-// 	s := strconv.FormatInt(bal, 10)
-// 	return &s
-// }
+// --- Env ---
+
+//go:wasmexport get_env_json
+func GetEnvJSON() *string {
+	env := sdk.GetEnv()
+	b := ToJSON(env, "env")
+	return &b
+}
+
+//go:wasmexport get_env_key
+func Get_env_key(k *string) *string {
+	if k == nil {
+		return strptr("key not found")
+	}
+	return sdk.GetEnvKey(*k)
+}
+
+// --- Intent checks ---
+
+//go:wasmexport show_transfer_allow
+func ShowIntent() *string {
+	env := sdk.GetEnv()
+	transferAllowIntent := GetFirstTransferAllow(env.Intents)
+	if transferAllowIntent == nil {
+		return strptr("none")
+	}
+	returnMessage := fmt.Sprintf("%d %s", transferAllowIntent.Limit, transferAllowIntent.Token.String())
+	return &returnMessage
+}
+
+// --- Balances ---
+
+type showBalanceArgs struct {
+	Address sdk.Address `json:"addr"`
+	Asset   sdk.Asset   `json:"asset"`
+}
+
+//go:wasmexport get_balance
+func Get_balance(payload *string) *string {
+	input := FromJSON[showBalanceArgs](*payload, "get_balance arguments")
+	bal := sdk.GetBalance(input.Address, input.Asset)
+	s := strconv.FormatInt(bal, 10)
+	return &s
+}
 
 // // --- Token flows ---
 
@@ -103,6 +119,14 @@ func Get_env_json() *string {
 // 	amt, err := strconv.ParseInt(*amount, 10, 64)
 // 	if err != nil {
 // 		return strptr("error: bad amount")
+// 	}
+// 	env := sdk.GetEnv()
+// 	transferAllow := GetFirstTransferAllow(env.Intents)
+// 	if transferAllow.Limit < amt{
+// 		strptr("intent too low")
+// 	}
+// 	if transferAllow.Token != sdk.Asset(*asset){
+// 		strptr("intent token not equal to asset")
 // 	}
 // 	sdk.HiveDraw(amt, sdk.Asset(*asset))
 // 	return strptr("ok")
@@ -134,20 +158,20 @@ func Get_env_json() *string {
 // 	return strptr("ok")
 // }
 
-// // --- Cross-contract ---
+// --- Cross-contract ---
 
-// // //wasmexport read_other
-// // func read_other(contractID *string, key *string) *string {
-// // 	if contractID == nil || key == nil {
-// // 		return strptr("")
-// // 	}
-// // 	return sdk.ContractRead(contractID, key)
-// // }
+// //wasmexport read_other
+// func read_other(contractID *string, key *string) *string {
+// 	if contractID == nil || key == nil {
+// 		return strptr("")
+// 	}
+// 	return sdk.ContractRead(contractID, key)
+// }
 
-// // //wasmexport call_other
-// // func call_other(contractID *string, method *string, payload *string, options *string) *string {
-// // 	if contractID == nil || method == nil {
-// // 		return strptr("error: missing contract/method")
-// // 	}
-// // 	return sdk.ContractCall(contractID, method, payload, options)
-// // }
+// //wasmexport call_other
+// func call_other(contractID *string, method *string, payload *string, options *string) *string {
+// 	if contractID == nil || method == nil {
+// 		return strptr("error: missing contract/method")
+// 	}
+// 	return sdk.ContractCall(contractID, method, payload, options)
+// }
