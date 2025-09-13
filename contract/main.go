@@ -73,10 +73,10 @@ func Rm_object(stateKey *string) *string {
 // --- Env ---
 
 //go:wasmexport get_env_json
-func GetEnvJSON() *string {
+func GetEnvJSON(none *string) *string {
 	env := sdk.GetEnv()
-	b := ToJSON(env, "env")
-	return strptr(b)
+	j := ToJSON(env, "env")
+	return strptr(j)
 }
 
 //go:wasmexport get_env_key
@@ -90,14 +90,14 @@ func Get_env_key(k *string) *string {
 // --- Intent checks ---
 
 //go:wasmexport show_transfer_allow
-func ShowIntent() *string {
+func ShowIntent(none *string) *string {
 	env := sdk.GetEnv()
 	transferAllowIntent := GetFirstTransferAllow(env.Intents)
 	if transferAllowIntent == nil {
 		return strptr("none")
 	}
-	returnMessage := fmt.Sprintf("%d %s", transferAllowIntent.Limit, transferAllowIntent.Token.String())
-	return strptr(returnMessage)
+	r := fmt.Sprintf("%d %s", transferAllowIntent.Limit, transferAllowIntent.Token.String())
+	return strptr(r)
 }
 
 // --- Balances ---

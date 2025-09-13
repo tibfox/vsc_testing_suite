@@ -7,7 +7,7 @@ import (
 
 // New struct for transfer.allow args
 type TransferAllow struct {
-	Limit int64
+	Limit float64
 	Token sdk.Asset
 }
 
@@ -34,7 +34,7 @@ func GetFirstTransferAllow(intents []sdk.Intent) *TransferAllow {
 				sdk.Abort("invalid intent token")
 			}
 			limitStr := intent.Args["limit"]
-			limit, err := strconv.ParseInt(limitStr, 10, 64)
+			limit, err := strconv.ParseFloat(limitStr, 64)
 			if err != nil {
 				sdk.Abort("invalid intent limit")
 			}
