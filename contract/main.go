@@ -76,7 +76,7 @@ func Rm_object(stateKey *string) *string {
 func GetEnvJSON() *string {
 	env := sdk.GetEnv()
 	b := ToJSON(env, "env")
-	return &b
+	return strptr(b)
 }
 
 //go:wasmexport get_env_key
@@ -97,7 +97,7 @@ func ShowIntent() *string {
 		return strptr("none")
 	}
 	returnMessage := fmt.Sprintf("%d %s", transferAllowIntent.Limit, transferAllowIntent.Token.String())
-	return &returnMessage
+	return strptr(returnMessage)
 }
 
 // --- Balances ---
@@ -112,7 +112,7 @@ func Get_balance(payload *string) *string {
 	input := FromJSON[showBalanceArgs](*payload, "get_balance arguments")
 	bal := sdk.GetBalance(input.Address, input.Asset)
 	s := strconv.FormatInt(bal, 10)
-	return &s
+	return strptr(s)
 }
 
 // // --- Token flows ---
