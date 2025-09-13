@@ -34,33 +34,39 @@ func Echo(msg *string) *string {
 
 // // --- State ---
 
+type SetObjectPayloadArgs struct {
+	Key   string `json:"stateKey"`
+	Value string `json:"stateValue"`
+}
+
 //go:wasmexport set_object
-func Set_object(key *string, value *string) *string {
-	if key == nil || value == nil {
-		return strptr("error: missing key/value")
+func Set_object(payload *string) *string {
+	input := FromJSON[SetObjectPayloadArgs](*payload, "set_object arguments")
+	if input.Key == "" || input.Value == "" {
+		return strptr("error: empty stateKey or stateValue")
 	}
-	sdk.StateSetObject(*key, *value)
+	sdk.StateSetObject(input.Key, input.Value)
 	return strptr("ok")
 }
 
 //go:wasmexport get_object
-func Get_object(key *string) *string {
-	if key == nil {
+func Get_object(stateKey *string) *string {
+	if stateKey == nil {
 		return strptr("")
 	}
-	res := sdk.StateGetObject(*key)
+	res := sdk.StateGetObject(*stateKey)
 	if res == nil || *res == "" {
-		return strptr("key not found")
+		return strptr("stateKey not found in contract state")
 	}
 	return res
 }
 
 //go:wasmexport rm_object
-func Rm_object(key *string) *string {
-	if key == nil {
-		return strptr("error: missing key")
+func Rm_object(stateKey *string) *string {
+	if stateKey == nil {
+		return strptr("error: missing stateKey")
 	}
-	sdk.StateDeleteObject(*key)
+	sdk.StateDeleteObject(*stateKey)
 	return strptr("ok")
 }
 
@@ -76,7 +82,7 @@ func GetEnvJSON() *string {
 //go:wasmexport get_env_key
 func Get_env_key(k *string) *string {
 	if k == nil {
-		return strptr("key not found")
+		return strptr("env key not found")
 	}
 	return sdk.GetEnvKey(*k)
 }
@@ -97,7 +103,7 @@ func ShowIntent() *string {
 // --- Balances ---
 
 type showBalanceArgs struct {
-	Address sdk.Address `json:"addr"`
+	Address sdk.Address `json:"address"`
 	Asset   sdk.Asset   `json:"asset"`
 }
 

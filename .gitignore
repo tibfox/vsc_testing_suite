@@ -2,4 +2,4 @@
 main.wasm
 .env
 data/
-build/
+mock_test.go
