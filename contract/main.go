@@ -96,7 +96,8 @@ func ShowIntent(none *string) *string {
 	if transferAllowIntent == nil {
 		return strptr("none")
 	}
-	r := fmt.Sprintf("%d %s", transferAllowIntent.Limit, transferAllowIntent.Token.String())
+	r := fmt.Sprintf("%f %s", transferAllowIntent.Limit, transferAllowIntent.Token.String())
+	sdk.Log(r)
 	return strptr(r)
 }
 
