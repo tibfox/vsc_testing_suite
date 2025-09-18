@@ -1,95 +1,63 @@
 package contract_test
 
 import (
-	"embed"
-	"encoding/json"
-	"fmt"
-
 	"testing"
-	"vsc-node/lib/test_utils"
+
 	"vsc-node/modules/db/vsc/contracts"
-
 	ledgerDb "vsc-node/modules/db/vsc/ledger"
-	stateEngine "vsc-node/modules/state-processing"
-
-	"github.com/stretchr/testify/assert"
 )
 
-//go:embed artifacts/main.wasm
-var ContractWasm []byte
-
-const contractId = "vsctestcontract"
-
-var _ = embed.FS{}
-
-func TestContractA(t *testing.T) {
-	ct := test_utils.NewContractTest()
-	ct.RegisterContract(contractId, ContractWasm)
-	ct.Deposit("hive:someone", 1000, ledgerDb.AssetHive) // deposit 1 HIVE
-	ct.Deposit("hive:someone", 1000, ledgerDb.AssetHbd)  // deposit 1 HBD
-
-	result, gasUsed, logs := ct.Call(stateEngine.TxVscCallContract{
-		Self: stateEngine.TxSelf{
-			TxId:                 "sometxid",
-			BlockId:              "abcdef",
-			Index:                69,
-			OpIndex:              0,
-			Timestamp:            "2025-09-03T00:00:00",
-			RequiredAuths:        []string{"hive:someone"},
-			RequiredPostingAuths: []string{},
-		},
-		ContractId: contractId,
-		Action:     "show_transfer_allow",
-		Payload:    json.RawMessage(""),
-		RcLimit:    1000,
-		Intents: []contracts.Intent{{
-			Type: "transfer.allow",
-			Args: map[string]string{
-				"limit": "1.000",
-				"token": "hive",
-			},
-		}},
-	})
-	assert.True(t, result.Success)                 // assert contract execution success
-	assert.LessOrEqual(t, gasUsed, uint(10000000)) // assert this call uses no more than 10M WASM gas
-	assert.GreaterOrEqual(t, len(logs), 1)         // assert at least 1 log emitted
-	for i, logEntry := range logs {
-		fmt.Printf("Log %d: %v\n", i, logEntry)
-	}
+// Simple individual tests
+func TestShowTA(t *testing.T) {
+	CallContract(t, "show_transfer_allow", PayloadToJSON(""), []contracts.Intent{
+		{Type: "transfer.allow", Args: map[string]string{"limit": "1.000", "token": "hive"}},
+	}, true)
 }
 
-func TestContractB(t *testing.T) {
-	ct := test_utils.NewContractTest()
-	ct.RegisterContract(contractId, ContractWasm)
-	ct.Deposit("hive:someone", 1000, ledgerDb.AssetHive) // deposit 1 HIVE
-	ct.Deposit("hive:someone", 1000, ledgerDb.AssetHbd)  // deposit 1 HBD
+func TestEcho(t *testing.T) {
+	CallContract(t, "echo", PayloadToJSON("test"), nil, true)
+}
 
-	result, gasUsed, logs := ct.Call(stateEngine.TxVscCallContract{
-		Self: stateEngine.TxSelf{
-			TxId:                 "sometxid",
-			BlockId:              "abcdef",
-			Index:                69,
-			OpIndex:              0,
-			Timestamp:            "2025-09-03T00:00:00",
-			RequiredAuths:        []string{"hive:someone"},
-			RequiredPostingAuths: []string{},
-		},
-		ContractId: contractId,
-		Action:     "show_transfer_allow",
-		Payload:    json.RawMessage(""),
-		RcLimit:    1000,
-		Intents: []contracts.Intent{{
-			Type: "transfer.allow",
-			Args: map[string]string{
-				"limit": "1.000",
-				"token": "hive",
-			},
-		}},
-	})
-	assert.True(t, result.Success)                 // assert contract execution success
-	assert.LessOrEqual(t, gasUsed, uint(10000000)) // assert this call uses no more than 10M WASM gas
-	assert.GreaterOrEqual(t, len(logs), 1)         // assert at least 1 log emitted
-	for i, logEntry := range logs {
-		fmt.Printf("Log %d: %v\n", i, logEntry)
+func TestPing(t *testing.T) {
+	CallContract(t, "ping", PayloadToJSON(""), nil, true)
+}
+
+// Table-driven example
+func TestContractActions(t *testing.T) {
+	tests := []ContractTestCase{
+		{"ShowTA", "show_transfer_allow", "", []contracts.Intent{{Type: "transfer.allow", Args: map[string]string{"limit": "1.000", "token": "hive"}}}, true},
+		{"Echo", "echo", "test", nil, true},
+		{"Ping", "ping", "", nil, true},
+		{"Show Balance", "get_balance", map[string]string{"address": "hive:someone", "asset": "hbd"}, nil, false},
 	}
+
+	RunContractTests(t, tests)
+}
+
+func TestContractStateChanges(t *testing.T) {
+	tests := []ContractTestCase{
+		{"Set First", "set_object", map[string]string{"stateKey": "testkey", "stateValue": "testval"}, nil, true},
+		{"Get First", "get_object", "testkey", nil, true},
+		{"Set Second", "set_object", map[string]string{"stateKey": "testkey", "stateValue": "testval2"}, nil, true},
+		{"Get Second", "get_object", "testkey", nil, true},
+		{"Delete", "rm_object", "testkey", nil, true},
+		{"Get Third", "get_object", "testkey", nil, true},
+	}
+	RunContractTests(t, tests)
+}
+
+func TestContractGetBalances(t *testing.T) {
+	testBeforeDeposite := []ContractTestCase{
+		{"Get Balance Hive", "get_balance", map[string]string{"address": "hive:someone", "asset": "hive"}, nil, true},
+		{"Get Balance HBD", "get_balance", map[string]string{"address": "hive:someone", "asset": "hive"}, nil, true},
+	}
+	RunContractTests(t, testBeforeDeposite)
+	SharedCT.Deposit("hive:someone", 1000, ledgerDb.AssetHive)
+	SharedCT.Deposit("hive:someone", 1000, ledgerDb.AssetHbd)
+
+	testAfterDeposite := []ContractTestCase{
+		{"Get Balance Hive", "get_balance", map[string]string{"address": "hive:someone", "asset": "hive"}, nil, true},
+		{"Get Balance HBD", "get_balance", map[string]string{"address": "hive:someone", "asset": "hive"}, nil, true},
+	}
+	RunContractTests(t, testAfterDeposite)
 }

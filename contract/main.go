@@ -19,7 +19,8 @@ func strptr(s string) *string { return &s }
 // =============================
 
 //go:wasmexport ping
-func Ping() *string {
+func Ping(none *string) *string {
+	sdk.Log("pong")
 	return strptr("pong")
 }
 
@@ -28,7 +29,7 @@ func Echo(msg *string) *string {
 	if msg == nil {
 		return strptr("")
 	}
-	sdk.Log("echo: " + *msg)
+	sdk.Log(*msg)
 	return msg
 }
 
@@ -46,6 +47,7 @@ func Set_object(payload *string) *string {
 		return strptr("error: empty stateKey or stateValue")
 	}
 	sdk.StateSetObject(input.Key, input.Value)
+	sdk.Log("ok")
 	return strptr("ok")
 }
 
@@ -56,8 +58,10 @@ func Get_object(stateKey *string) *string {
 	}
 	res := sdk.StateGetObject(*stateKey)
 	if res == nil || *res == "" {
+		sdk.Log("stateKey not found in contract state")
 		return strptr("stateKey not found in contract state")
 	}
+	sdk.Log(*res)
 	return res
 }
 
@@ -67,6 +71,7 @@ func Rm_object(stateKey *string) *string {
 		return strptr("error: missing stateKey")
 	}
 	sdk.StateDeleteObject(*stateKey)
+	sdk.Log("ok")
 	return strptr("ok")
 }
 
@@ -76,6 +81,7 @@ func Rm_object(stateKey *string) *string {
 func GetEnvJSON(none *string) *string {
 	env := sdk.GetEnv()
 	j := ToJSON(env, "env")
+	sdk.Log(j)
 	return strptr(j)
 }
 
@@ -84,7 +90,9 @@ func Get_env_key(k *string) *string {
 	if k == nil {
 		return strptr("env key not found")
 	}
-	return sdk.GetEnvKey(*k)
+	envVal := sdk.GetEnvKey(*k)
+	sdk.Log(*envVal)
+	return envVal
 }
 
 // --- Intent checks ---
@@ -113,6 +121,7 @@ func Get_balance(payload *string) *string {
 	input := FromJSON[showBalanceArgs](*payload, "get_balance arguments")
 	bal := sdk.GetBalance(input.Address, input.Asset)
 	s := strconv.FormatInt(bal, 10)
+	sdk.Log(s)
 	return strptr(s)
 }
 
