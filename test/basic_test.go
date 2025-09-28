@@ -18,6 +18,10 @@ func TestEcho(t *testing.T) {
 	CallContract(t, "echo", PayloadToJSON("test"), nil, true)
 }
 
+func TestSomeLogs(t *testing.T) {
+	CallContract(t, "emit_event_logs", PayloadToJSON(""), nil, true)
+}
+
 func TestPing(t *testing.T) {
 	CallContract(t, "ping", PayloadToJSON(""), nil, true)
 }

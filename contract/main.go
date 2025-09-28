@@ -47,7 +47,7 @@ func Set_object(payload *string) *string {
 		return strptr("error: empty stateKey or stateValue")
 	}
 	sdk.StateSetObject(input.Key, input.Value)
-	sdk.Log("ok")
+	sdk.Log("added id:" + input.Key)
 	return strptr("ok")
 }
 
@@ -71,7 +71,7 @@ func Rm_object(stateKey *string) *string {
 		return strptr("error: missing stateKey")
 	}
 	sdk.StateDeleteObject(*stateKey)
-	sdk.Log("ok")
+	sdk.Log("removed id:" + *stateKey)
 	return strptr("ok")
 }
 
@@ -123,6 +123,46 @@ func Get_balance(payload *string) *string {
 	s := strconv.FormatInt(bal, 10)
 	sdk.Log(s)
 	return strptr(s)
+}
+
+// Event is the common structure for all emitted events.
+type Event struct {
+	Type       string            `json:"type"`
+	Attributes map[string]string `json:"attributes"`
+}
+
+// emitEvent builds the event and logs it as JSON.
+func emitEvent(eventType string, attributes map[string]string) {
+	event := Event{
+		Type:       eventType,
+		Attributes: attributes,
+	}
+	sdk.Log(ToJSON(event, eventType+" event data"))
+}
+
+//go:wasmexport emit_event_logs
+func EmitSomeLogs(none *string) *string {
+	sdk.Log("stringlog id:123 from:hive:someone to:hive:someone")
+	sdk.Log("stringlog2,id:123,by:hive:someone")
+	sdk.Log("stringlog3|id:123|details:test123")
+	sdk.Log("stringlog4|id=123|details=test123")
+
+	emitEvent("jsonlog", map[string]string{
+		"id":   "123",
+		"from": "hive:someone",
+		"to":   "hive:someoneelse",
+	})
+
+	emitEvent("jsonlog2", map[string]string{
+		"id": "123",
+		"by": "hive:someone",
+	})
+
+	emitEvent("jsonlog3", map[string]string{
+		"id":      "123",
+		"details": "test123",
+	})
+	return strptr("ok")
 }
 
 // // --- Token flows ---

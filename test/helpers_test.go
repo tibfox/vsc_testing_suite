@@ -19,6 +19,7 @@ var _ = embed.FS{} // just so "embed" can be imported
 // Shared contract state across tests
 var SharedCT *test_utils.ContractTest
 
+const ContractOwner = "hive:tibfox.vsc"
 const ContractID = "vsctestcontract"
 
 //go:embed artifacts/main.wasm
@@ -29,7 +30,7 @@ func SetupShared() *test_utils.ContractTest {
 	if SharedCT == nil {
 		ct := test_utils.NewContractTest()
 		SharedCT = &ct
-		SharedCT.RegisterContract(ContractID, ContractWasm)
+		SharedCT.RegisterContract(ContractID, ContractOwner, ContractWasm)
 		SharedCT.Deposit("hive:someone", 1000, ledgerDb.AssetHive)
 		SharedCT.Deposit("hive:someone", 1000, ledgerDb.AssetHbd)
 	}
@@ -37,7 +38,7 @@ func SetupShared() *test_utils.ContractTest {
 }
 
 // CallContract executes a contract action and asserts basic success
-func CallContract(t *testing.T, action string, payload json.RawMessage, intents []contracts.Intent, expectLogs bool) (stateEngine.TxResult, uint, []string) {
+func CallContract(t *testing.T, action string, payload json.RawMessage, intents []contracts.Intent, expectLogs bool) (stateEngine.TxResult, uint, map[string][]string) {
 	ct := SetupShared()
 	result, gasUsed, logs := ct.Call(stateEngine.TxVscCallContract{
 		Self: stateEngine.TxSelf{
@@ -68,9 +69,11 @@ func CallContract(t *testing.T, action string, payload json.RawMessage, intents 
 }
 
 // PrintLogs prints all logs from a contract call
-func PrintLogs(logs []string) {
-	for i, logEntry := range logs {
-		fmt.Printf("Log %d: %v\n", i, logEntry)
+func PrintLogs(logs map[string][]string) {
+	for key, values := range logs {
+		for _, v := range values {
+			fmt.Printf("[%s] %s\n", key, v)
+		}
 	}
 }
 
